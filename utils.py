@@ -10,7 +10,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from openai import OpenAI
 
-def chunk_embed_store_transcript(transcript_text, persist_dir="/chroma_db"):
+def chunk_embed_store_transcript(transcript_text, persist_dir="./chroma_db"):
     """
     Splits transcript into chunks, generates embeddings,
     and stores them in a persistent Chroma vector database.
@@ -26,7 +26,7 @@ def chunk_embed_store_transcript(transcript_text, persist_dir="/chroma_db"):
     vectordb = Chroma.from_texts(
         texts=chunks,
         embedding=embeddings_model,
-        persist_directory=None,
+        persist_directory=persist_dir,
         collection_name="decode_transcripts",
     )
     vectordb.persist()
@@ -40,7 +40,7 @@ def build_retriever(persist_dir="/chroma_db"):
     """
     embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
     vectordb = Chroma(
-        persist_directory=None,
+        persist_directory=persist_dir,
         embedding_function=embeddings_model,
         collection_name="decode_transcripts",
     )
@@ -160,13 +160,13 @@ def find_supporting_quotes(points, all_chunks, embeddings_model, top_k=2):
         if quoted_bits:
             for qb in quoted_bits:
                 qb_norm = re.sub(r'\s+', ' ', qb).strip().lower()
-                best_idx = None
+                best_idx = persist_dir
                 for i, ch in enumerate(all_chunks):
                     ch_norm = re.sub(r'\s+', ' ', ch).strip().lower()
                     if qb_norm in ch_norm:
                         best_idx = i
                         break
-                if best_idx is not None:
+                if best_idx is not persist_dir:
                     cand = all_chunks[best_idx]
                     if cand not in matched:
                         matched.append(cand)
