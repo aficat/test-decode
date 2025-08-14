@@ -15,6 +15,7 @@ from langchain.vectorstores import FAISS
 OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY")
 
 from utils import (
+    chunk_embed_store_transcript,
     build_retriever,
     get_llm_client,
     generate_insights,
@@ -23,7 +24,6 @@ from utils import (
     export_to_word,
     extract_insight_summaries,
 )
-
 
 def parse_transcript(uploaded_file):
     """Reads txt or docx using python-docx (no docx2txt dependency)."""
@@ -44,7 +44,7 @@ def main():
     st.markdown("<p style='color:gray; font-size:14px; margin-top:-10px;'>Qualitative insights you can trace, and trust</p>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Transcript upload
+    # Upload transcripts
     st.subheader("Upload raw data - interview transcript(s)")
     uploaded_files = st.file_uploader(
         "You may upload more than one", type=["docx", "txt"], accept_multiple_files=True
@@ -54,7 +54,7 @@ def main():
     if uploaded_files:
         all_transcripts = [parse_transcript(f) for f in uploaded_files]
 
-        # --- Research question form ---
+        # Research question form
         st.markdown("<h3 style='font-weight:bold;'>Enter Your Research Question</h3>", unsafe_allow_html=True)
         placeholder_text = (
             "What are you trying to find out from this transcript? For example, "
@@ -84,44 +84,44 @@ def main():
                 unsafe_allow_html=True,
             )
 
-            # --- Build vector store once per session ---
+            # Build or load vector store
+            embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
             if "vectordb" not in st.session_state:
                 with st.spinner("Processing transcripts and generating embeddings..."):
-                    embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
                     all_chunks = []
-                    all_chunk_sources = []
+                    all_chunk_sources = []  # transcript index per chunk
                     for idx, transcript in enumerate(all_transcripts):
-                        from langchain.text_splitter import RecursiveCharacterTextSplitter
-                        splitter = RecursiveCharacterTextSplitter(
+                        text_splitter = chunk_embed_store_transcript.__globals__['RecursiveCharacterTextSplitter'](
                             separators=["\n\n", "\n", " ", ""],
                             chunk_size=1000,
                             chunk_overlap=100,
                         )
-                        chunks = splitter.split_text(transcript)
+                        chunks = text_splitter.split_text(transcript)
                         all_chunks.extend(chunks)
                         all_chunk_sources.extend([idx] * len(chunks))
                         time.sleep(0.05)
 
+                    # Create FAISS vector store
                     vectordb = FAISS.from_texts(
                         texts=all_chunks,
                         embedding=embeddings_model,
                     )
-
-                    # Save FAISS index to disk if needed
-                    FAISS.write_index(vectordb.index, "vectordb.index")
+                    vectordb.save_local("vectordb")  # save index locally
 
                     st.session_state["vectordb"] = vectordb
                     st.session_state["all_chunks"] = all_chunks
                     st.session_state["embeddings_model"] = embeddings_model
                     st.session_state["all_chunk_sources"] = all_chunk_sources
                     st.session_state["all_transcripts"] = all_transcripts
-
-            all_chunks = st.session_state["all_chunks"]
-            embeddings_model = st.session_state["embeddings_model"]
-            all_chunk_sources = st.session_state["all_chunk_sources"]
+            else:
+                vectordb = st.session_state["vectordb"]
+                all_chunks = st.session_state["all_chunks"]
+                embeddings_model = st.session_state["embeddings_model"]
+                all_chunk_sources = st.session_state["all_chunk_sources"]
 
             retriever = build_retriever()
             client = get_llm_client()
+
             relevant_docs = retriever.get_relevant_documents(rq)
 
             with st.spinner("Generating insights, please wait..."):
@@ -130,10 +130,12 @@ def main():
                 summaries = extract_insight_summaries(insight_points)
                 supporting_quotes = find_supporting_quotes(insight_points, all_chunks, embeddings_model)
 
-            # --- Display findings ---
+            # --- Findings ---
             st.markdown("### Findings:", unsafe_allow_html=True)
+
             for i, point in enumerate(insight_points):
                 summary = summaries[i].strip(" *")
+
                 summary_pattern = re.compile(r'^(\*\*)?' + re.escape(summary) + r'(\*\*)?[\s:.\-–—]*', re.IGNORECASE)
                 body = summary_pattern.sub('', point, count=1).lstrip('\n :.-–—')
 
@@ -153,24 +155,61 @@ def main():
                         unsafe_allow_html=True,
                     )
                     st.write(body)
-
                     st.markdown(
                         f"<span style='color: gray; font-size: 13px;'>"
                         f"Mentioned by: {len(participant_indices)} participant{'s' if len(participant_indices) != 1 else ''}"
                         f"</span>",
                         unsafe_allow_html=True,
                     )
-
                     st.markdown("**Supporting quotes:**")
+
+                    def render_quote(raw_quote: str):
+                        q = raw_quote.strip()
+                        lines = q.splitlines()
+                        timestamp = None
+                        text = q
+
+                        if lines and re.match(r'^\d{2}:\d{2}:\d{2}$', lines[0].strip()):
+                            timestamp = lines[0].strip()
+                            text = "\n".join(lines[1:]).strip()
+                        else:
+                            m = re.match(r'^(\d{2}:\d{2}:\d{2})\s*(.*)$', q)
+                            if m:
+                                timestamp = m.group(1)
+                                text = m.group(2).strip()
+
+                        text = re.sub(r'^(Speaker\s*\d+\s*:?)\s*', '', text, flags=re.IGNORECASE)
+
+                        if not text:
+                            fallback = "\n".join(lines[1:]).strip() if lines else q
+                            text = (fallback[:220] + "…") if len(fallback) > 220 else fallback
+
+                        if timestamp:
+                            st.markdown(
+                                f"<span style='font-size: 13px; color: #333;'>"
+                                f"<span style='font-weight:bold;'>{timestamp}</span><br>"
+                                f"<i style='font-size: 12px; white-space: pre-wrap;'>{escape(text)}</i>"
+                                f"</span>",
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.markdown(
+                                f"<span style='font-size: 13px; color: #333;'>"
+                                f"<i style='font-size: 12px; white-space: pre-wrap;'>{escape(text)}</i>"
+                                f"</span>",
+                                unsafe_allow_html=True,
+                            )
+
                     seen = set()
                     for quote in supporting_quotes[i]:
                         if quote in seen:
                             continue
                         seen.add(quote)
-                        st.markdown(f"<i style='font-size:12px'>{escape(quote)}</i>", unsafe_allow_html=True)
+                        render_quote(quote)
 
             st.markdown("---")
             st.markdown("## 📤 Export Findings")
+
             if st.button("Download Findings as Word Document"):
                 doc_stream = export_to_word([(rq, insight_text)], [supporting_quotes])
                 st.download_button(
