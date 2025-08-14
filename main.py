@@ -108,7 +108,7 @@ def main():
                     vectordb = Chroma.from_texts(
                         texts=all_chunks,
                         embedding=embeddings_model,
-                        persist_directory="./chroma_db",
+                        persist_directory="/chroma_db",
                         collection_name="decode_transcripts",
                     )
                     vectordb.persist()

@@ -10,8 +10,6 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from openai import OpenAI
 
-
-
 def chunk_embed_store_transcript(transcript_text, persist_dir="/chroma_db"):
     """
     Splits transcript into chunks, generates embeddings,
