@@ -112,7 +112,8 @@ def main():
                         # persist_directory="./chroma_db",
                         # collection_name="decode_transcripts",
                     )
-                    vectordb.persist()
+                    # vectordb.persist()
+                    FAISS.write_index(vectordb.index, "vectordb.index") 
                     st.session_state["vectordb"] = vectordb
                     st.session_state["all_chunks"] = all_chunks
                     st.session_state["embeddings_model"] = embeddings_model
