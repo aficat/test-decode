@@ -12,7 +12,7 @@ from langchain.embeddings import OpenAIEmbeddings
 
 # from mysecrets import OPENAI_API_KEY
 # os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY")
 
 from utils import (
     chunk_embed_store_transcript,
@@ -24,7 +24,6 @@ from utils import (
     export_to_word,
     extract_insight_summaries,
 )
-
 
 def parse_transcript(uploaded_file):
     """Reads txt or docx using python-docx (no docx2txt dependency)."""
