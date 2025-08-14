@@ -26,7 +26,7 @@ def chunk_embed_store_transcript(transcript_text, persist_dir="/chroma_db"):
     vectordb = Chroma.from_texts(
         texts=chunks,
         embedding=embeddings_model,
-        persist_directory=persist_dir,
+        persist_directory=None,
         collection_name="decode_transcripts",
     )
     vectordb.persist()
@@ -40,7 +40,7 @@ def build_retriever(persist_dir="/chroma_db"):
     """
     embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
     vectordb = Chroma(
-        persist_directory=persist_dir,
+        persist_directory=None,
         embedding_function=embeddings_model,
         collection_name="decode_transcripts",
     )
