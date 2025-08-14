@@ -10,6 +10,7 @@ import streamlit as st
 from docx import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
+from langchain.vectorstores import FAISS
 
 # from mysecrets import OPENAI_API_KEY
 # os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
@@ -105,11 +106,11 @@ def main():
 
                     embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
 
-                    vectordb = Chroma.from_texts(
+                    vectordb = FAISS.from_texts(
                         texts=all_chunks,
                         embedding=embeddings_model,
-                        persist_directory="./chroma_db",
-                        collection_name="decode_transcripts",
+                        # persist_directory="./chroma_db",
+                        # collection_name="decode_transcripts",
                     )
                     vectordb.persist()
                     st.session_state["vectordb"] = vectordb

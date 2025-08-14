@@ -9,6 +9,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from openai import OpenAI
+from langchain.vectorstores import FAISS
 
 def chunk_embed_store_transcript(transcript_text, persist_dir="./chroma_db"):
     """
@@ -23,11 +24,11 @@ def chunk_embed_store_transcript(transcript_text, persist_dir="./chroma_db"):
     chunks = text_splitter.split_text(transcript_text)
 
     embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
-    vectordb = Chroma.from_texts(
+    vectordb = FAISS.from_texts(
         texts=chunks,
         embedding=embeddings_model,
-        persist_directory=persist_dir,
-        collection_name="decode_transcripts",
+        # persist_directory=persist_dir,
+        # collection_name="decode_transcripts",
     )
     vectordb.persist()
     return vectordb
@@ -39,10 +40,10 @@ def build_retriever(persist_dir="/chroma_db"):
     Prefer MMR to diversify results; otherwise fall back to k search.
     """
     embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
-    vectordb = Chroma(
-        persist_directory=persist_dir,
+    vectordb = FAISS(
+        # persist_directory=persist_dir,
         embedding_function=embeddings_model,
-        collection_name="decode_transcripts",
+        # collection_name="decode_transcripts",
     )
     try:
         retriever = vectordb.as_retriever(
