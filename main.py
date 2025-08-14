@@ -8,7 +8,7 @@ from io import StringIO, BytesIO
 
 import streamlit as st
 from docx import Document
-from langchain.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 
 # from mysecrets import OPENAI_API_KEY
 # os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
