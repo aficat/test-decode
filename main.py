@@ -119,7 +119,7 @@ def main():
                 embeddings_model = st.session_state["embeddings_model"]
                 all_chunk_sources = st.session_state["all_chunk_sources"]
 
-            retriever = build_retriever()
+            retriever = build_retriever(st.session_state["vectordb"])
             client = get_llm_client()
 
             relevant_docs = retriever.get_relevant_documents(rq)
