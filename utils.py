@@ -12,7 +12,7 @@ from openai import OpenAI
 
 
 
-def chunk_embed_store_transcript(transcript_text, persist_dir="./chroma_db"):
+def chunk_embed_store_transcript(transcript_text, persist_dir="/chroma_db"):
     """
     Splits transcript into chunks, generates embeddings,
     and stores them in a persistent Chroma vector database.
@@ -28,21 +28,21 @@ def chunk_embed_store_transcript(transcript_text, persist_dir="./chroma_db"):
     vectordb = Chroma.from_texts(
         texts=chunks,
         embedding=embeddings_model,
-        persist_directory=None,
+        persist_directory=persist_dir,
         collection_name="decode_transcripts",
     )
     vectordb.persist()
     return vectordb
 
 
-def build_retriever(persist_dir="./chroma_db"):
+def build_retriever(persist_dir="/chroma_db"):
     """
     Loads the Chroma vector database and returns a retriever.
     Prefer MMR to diversify results; otherwise fall back to k search.
     """
     embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
     vectordb = Chroma(
-        persist_directory=None,
+        persist_directory=persist_dir,
         embedding_function=embeddings_model,
         collection_name="decode_transcripts",
     )
